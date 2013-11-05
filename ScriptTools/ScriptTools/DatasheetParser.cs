@@ -5,29 +5,25 @@ using System.Text;
 using System.Threading.Tasks;
 using Excel = Microsoft.Office.Interop.Excel;
 using System.Windows.Forms;
+using System.Collections;
 
 namespace ScriptTools
 {
     class DatasheetParser
     {
-        private static Excel._Application xlApp;
-        private static Excel._Workbook xlWorkBook = null;
-        private static Excel._Worksheet ds_xlWorkSheet = null;
-        private static Excel._Worksheet info_xlWorkSheet = null;
-
+        private Excel._Application xlApp;
+        private Excel._Workbook xlWorkBook = null;
+        private Excel._Worksheet ds_xlWorkSheet = null;
+        private Excel._Worksheet info_xlWorkSheet = null;
         public void LoadDataSheetFile(string datasheetFileName)
         {
             ExcelInit(datasheetFileName);
-
-            //datasheet processing example
-            string test = ExcelGetValue("A8", ds_xlWorkSheet);
-
             ExcelClose();
         }
 
 
         //Method to initialize opening Excel
-        static void ExcelInit(String path)
+        private void ExcelInit(String path)
         {
             xlApp = new Excel.Application();
             string dsSheet = "datasheet";
@@ -39,8 +35,15 @@ namespace ScriptTools
                 xlWorkBook = xlApp.Workbooks.Open(path,
                 0, true, 5, "", "", true, Excel.XlPlatform.xlWindows, "\t",
                 false, false, 0, true, 1, 0);
-                ds_xlWorkSheet = (Excel.Worksheet)xlWorkBook.Worksheets.get_Item(dsSheet);
+
+                //read info datasheet first to generate product specs list
                 info_xlWorkSheet = (Excel.Worksheet)xlWorkBook.Worksheets.get_Item(idinfoSheet);
+                List<string> idinfo = ReadIdInfoIntoDataTable(info_xlWorkSheet);
+                //read datasheet and load the data into product specs list
+                ds_xlWorkSheet = (Excel.Worksheet)xlWorkBook.Worksheets.get_Item(dsSheet);
+                ReadDatasheetIntoDataTable(ds_xlWorkSheet);
+
+
             }
             else
             {
@@ -52,8 +55,79 @@ namespace ScriptTools
 
         }
 
+        //currently the excel sheets(ds and info) data structure are hard-coded, 
+        //will improve later
+        private List<string> ReadIdInfoIntoDataTable(Excel._Worksheet sheet)
+        {
+            //sheet header:
+            //Device Family	| Product | SW_WHOAMI | Production SWRev | ES SWRev | Continuity
+            string[] header = { "Device Family", "Product", "SW_WHOAMI", "Production SWRev", "ES SWRev", "Continuity" };
+            int posDeviceFamily = 1;
+            int posProduct = 2;
+            int posSWWhoAmI = 3;
+            int posContinuity = 6;
+            List<string> list = new List<string>();
+            string[] val = new string[4];
+            string sep = ", ";
+            List<string> idinfo = new List<string>();
+            if (sheet != null)
+            {
+                //create a list without any duplicate
+                Excel.Range last = sheet.Cells.SpecialCells(Excel.XlCellType.xlCellTypeLastCell, Type.Missing);
+                Excel.Range range = sheet.get_Range("A1", last);
+                int rows = last.Row;
+                string cellName = string.Empty;
+                string cellVal = string.Empty;
+                for (int i = 2; i < rows; i++)
+                {
+                    val[0] = ExcelGetValue(GetExcelColumnName(posDeviceFamily) + i.ToString(), sheet);
+                    val[1] = ExcelGetValue(GetExcelColumnName(posProduct) + i.ToString(), sheet);
+                    val[2] = ExcelGetValue(GetExcelColumnName(posSWWhoAmI) + i.ToString(), sheet);
+                    val[3] = ExcelGetValue(GetExcelColumnName(posContinuity) + i.ToString(), sheet);
+                    list.Add(String.Join(sep, val));
+                }
+                //now remove duplicates
+                idinfo = list.Distinct().ToList();
+            }
+            return idinfo;
+        }
+        private void ReadDatasheetIntoDataTable(Excel._Worksheet sheet)
+        {
+            int cols, rows;
+            if (sheet != null)
+            {
+                cols = sheet.Columns.Count;
+                rows = sheet.Rows.Count;
+                string cellName = string.Empty;
+                string cellVal = string.Empty;
+                for (int i = 1; i < rows; i++)
+                {
+                    for (int j = 1; j <= cols; j++)
+                    {
+                        cellName = GetExcelColumnName(j) + i.ToString();
+                        cellVal = ExcelGetValue(cellName, sheet);
+                    }
+                }
+            }
+        }
+
+        private string GetExcelColumnName(int columnNumber)
+        {
+            int dividend = columnNumber;
+            string columnName = String.Empty;
+            int modulo;
+
+            while (dividend > 0)
+            {
+                modulo = (dividend - 1) % 26;
+                columnName = Convert.ToChar(65 + modulo).ToString() + columnName;
+                dividend = (int)((dividend - modulo) / 26);
+            }
+
+            return columnName;
+        }
         //Method to get value; cellname is A1,A2, or B1,B2 etc...in excel.
-        static string ExcelGetValue(string cellname, Excel._Worksheet sheet)
+        private string ExcelGetValue(string cellname, Excel._Worksheet sheet)
         {
             string value = string.Empty;
             try
@@ -69,7 +143,7 @@ namespace ScriptTools
         }
 
         //Method to close excel connection
-        static void ExcelClose()
+        private void ExcelClose()
         {
             if (xlApp != null)
             {
