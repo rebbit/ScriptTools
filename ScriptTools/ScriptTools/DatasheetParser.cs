@@ -15,20 +15,20 @@ namespace ScriptTools
         private Excel._Workbook xlWorkBook = null;
         private Excel._Worksheet ds_xlWorkSheet = null;
         private Excel._Worksheet info_xlWorkSheet = null;
-        public void LoadDataSheetFile(string datasheetFileName)
+        public void LoadDataSheetFile(string datasheetFileName, out List<Product> productLists)
         {
-            ExcelInit(datasheetFileName);
+            ExcelInit(datasheetFileName, out productLists);
             ExcelClose();
         }
 
 
         //Method to initialize opening Excel
-        private void ExcelInit(String path)
+        private void ExcelInit(String path, out List<Product> idinfo)
         {
             xlApp = new Excel.Application();
             string dsSheet = "datasheet";
             string idinfoSheet = "idinfo";
-
+            idinfo = null;
             if (System.IO.File.Exists(path))
             {
                 // then go and load this into excel
@@ -38,12 +38,10 @@ namespace ScriptTools
 
                 //read info datasheet first to generate product specs list
                 info_xlWorkSheet = (Excel.Worksheet)xlWorkBook.Worksheets.get_Item(idinfoSheet);
-                List<string> idinfo = ReadIdInfoIntoDataTable(info_xlWorkSheet);
+                idinfo = ReadIdInfoIntoDataTable(info_xlWorkSheet);
                 //read datasheet and load the data into product specs list
-                ds_xlWorkSheet = (Excel.Worksheet)xlWorkBook.Worksheets.get_Item(dsSheet);
-                ReadDatasheetIntoDataTable(ds_xlWorkSheet);
-
-
+                //ds_xlWorkSheet = (Excel.Worksheet)xlWorkBook.Worksheets.get_Item(dsSheet);
+                //ReadDatasheetIntoDataTable(ds_xlWorkSheet);
             }
             else
             {
@@ -52,13 +50,14 @@ namespace ScriptTools
                 xlApp = null;
                 System.Windows.Forms.Application.Exit();
             }
-
         }
 
         //currently the excel sheets(ds and info) data structure are hard-coded, 
         //will improve later
-        private List<string> ReadIdInfoIntoDataTable(Excel._Worksheet sheet)
+        private List<Product> ReadIdInfoIntoDataTable(Excel._Worksheet sheet)
         {
+            List<Product> listProducts = new List<Product>();
+
             //sheet header:
             //Device Family	| Product | SW_WHOAMI | Production SWRev | ES SWRev | Continuity
             string[] header = { "Device Family", "Product", "SW_WHOAMI", "Production SWRev", "ES SWRev", "Continuity" };
@@ -69,6 +68,7 @@ namespace ScriptTools
             List<string> list = new List<string>();
             string[] val = new string[4];
             string sep = ", ";
+            string [] sep2 = {","};
             List<string> idinfo = new List<string>();
             if (sheet != null)
             {
@@ -89,7 +89,42 @@ namespace ScriptTools
                 //now remove duplicates
                 idinfo = list.Distinct().ToList();
             }
-            return idinfo;
+            if (idinfo != null)
+            {
+                foreach (string prod in idinfo)
+                {
+                    val = prod.Split(',');
+                    FamilyName familyname = GetFamilyName(val[0].Trim());
+                    ProductName productname = GetProductName(val[1].Replace("-","").Trim());
+                    byte whoami = Convert.ToByte(val[2].Trim(), 16);
+                    int continuity = Convert.ToInt16(val[3].Trim());
+                    Product product = new Product(familyname, productname, whoami, continuity);
+                    listProducts.Add(product);
+                }
+            }
+            return listProducts;
+        }
+        private byte ConvertStringByte(string stringVal)
+        {
+            byte byteVal = 0;
+
+            try
+            {
+                byteVal = Convert.ToByte(stringVal);
+            }
+            catch (System.OverflowException)
+            {
+                MessageBox.Show("Conversion from string to byte overflowed.");
+            }
+            catch (System.FormatException)
+            {
+                MessageBox.Show("The string is not formatted as a byte.");
+            }
+            catch (System.ArgumentNullException)
+            {
+                MessageBox.Show("The string is null.");
+            }
+            return byteVal;
         }
         private void ReadDatasheetIntoDataTable(Excel._Worksheet sheet)
         {
@@ -164,6 +199,117 @@ namespace ScriptTools
                     GC.Collect();
                 }
             }
+        }
+
+
+        private ProductName GetProductName(string productname)
+        {
+            ProductName pn;
+            switch (productname)
+            {
+                case "MPU6500":
+                    pn = ProductName.MPU6500;
+                    break;
+                case "MPU6500M":
+                    pn = ProductName.MPU6500M;
+                    break;
+                case "MPU6505":
+                    pn = ProductName.MPU6505;
+                    break;
+                case "MPU6505C":
+                    pn = ProductName.MPU6505C;
+                    break;
+                case "MPU6505M":
+                    pn = ProductName.MPU6505M;
+                    break;
+                case "MPU6506":
+                    pn = ProductName.MPU6506;
+                    break;
+                case "MPU6515":
+                    pn = ProductName.MPU6515;
+                    break;
+                case "MPU6515C":
+                    pn = ProductName.MPU6515C;
+                    break;
+                case "MPU6515M":
+                    pn = ProductName.MPU6515M;
+                    break;
+                case "MPU6520":
+                    pn = ProductName.MPU6520;
+                    break;
+                case "MPU6521":
+                    pn = ProductName.MPU6521;
+                    break;
+                case "MPU6530":
+                    pn = ProductName.MPU6530;
+                    break;
+                case "MPU6580":
+                    pn = ProductName.MPU6580;
+                    break;
+                case "MPU6700":
+                    pn = ProductName.MPU6700;
+                    break;
+                case "MPU7400":
+                    pn = ProductName.MPU7400;
+                    break;
+                case "MPU9250":
+                    pn = ProductName.MPU9250;
+                    break;
+                case "MPU9350":
+                    pn = ProductName.MPU9350;
+                    break;
+                case "ISZ2530":
+                    pn = ProductName.ISZ2530;
+                    break;
+                case "ISX2530":
+                    pn = ProductName.ISX2530;
+                    break;
+                case "IDG2530":
+                    pn = ProductName.IDG2530;
+                    break;
+                case "IDG2030":
+                    pn = ProductName.IDG2030;
+                    break;
+                case "IXZ2530":
+                    pn = ProductName.IXZ2530;
+                    break;
+                case "IXZ2030":
+                    pn = ProductName.IXZ2030;
+                    break;
+                default:
+                    pn = ProductName.NA;
+                    break;
+            }
+            return pn;
+        }
+        private FamilyName GetFamilyName(string familyname)
+        {
+            FamilyName fn;
+            switch (familyname)
+            {
+                case "Scorpion":
+                    fn = FamilyName.Scorpion;
+                    break;
+                case "Fluorite":
+                    fn = FamilyName.Fluorite;
+                    break;
+                case "Opal":
+                    fn = FamilyName.Opal;
+                    break;
+                case "Sapphire":
+                    fn = FamilyName.Sapphire;
+                    break;
+                case "Turquoise":
+                    fn = FamilyName.Turquoise;
+                    break;
+                case "Amber":
+                    fn = FamilyName.Amber;
+                    break;
+                default:
+                    fn = FamilyName.NA;
+                    break;
+            }
+            return fn;
         }
 
 

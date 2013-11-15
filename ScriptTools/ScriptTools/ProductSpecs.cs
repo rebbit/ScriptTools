@@ -6,18 +6,19 @@ using System.Threading.Tasks;
 
 namespace ScriptTools
 {
-    class ProductSpecs
+    
+    class Product
     {
-        public string DeviceFamily { get; private set; }
-        public string Product { get; private set; }
-        public byte SWWhoAmI { get; private set; }
-        public int Continuity { get; private set; }
-        public ProductSpecs(string devicefamily, string product, byte swWhoAmI = 0x00, int continuity = 2047)
+        public FamilyName deviceFamily { get; private set; }
+        public ProductName product { get; private set; }
+        public byte swWhoAmI { get; private set; }
+        public int continuity { get; private set; }
+        public Product(FamilyName family, ProductName prod, byte swwai = 0x00, int c = 2047)
         {
-            this.DeviceFamily = devicefamily;
-            this.Product = product;
-            this.SWWhoAmI = swWhoAmI;
-            this.Continuity = continuity;
+            this.deviceFamily = family;
+            this.product = prod;
+            this.swWhoAmI = swwai;
+            this.continuity = c;
         }
 
     }
